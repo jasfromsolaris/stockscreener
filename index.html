@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Proprietary Ranking with All Indicators</title>
+
+  <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: flex;
+    }
+    .left-column {
+      margin-right: 20px;
+    }
+    #chart {
+      width: 900px;
+      height: 600px;
+      border: 1px solid #ccc;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    #ranking {
+      width: 300px;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    #ranking h3 {
+      margin-top: 0;
+    }
+    #ranking ul {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="left-column">
+    <h1>Proprietary Ranking + All Indicators</h1>
+
+    <div class="controls">
+      <label for="symbol">Ticker Symbol:</label>
+      <input type="text" id="symbol" value="AAPL" />
+
+      <label for="interval">Interval:</label>
+      <select id="interval">
+        <option value="1D">1D (Daily)</option>
+        <option value="5min">5m</option>
+        <option value="15min">15m</option>
+        <option value="30min">30m</option>
+        <option value="1h">1h</option>
+      </select>
+      <button id="loadBtn">Load Chart</button>
+    </div>
+
+    <div class="controls">
+      <!-- Toggles for intraday-based indicators -->
+      <label><input type="checkbox" id="toggleEma8" checked> EMA8</label>
+      <label><input type="checkbox" id="toggleEma26" checked> EMA26</label>
+      <label><input type="checkbox" id="toggleVwapGlobal" checked> VWAP(Global)</label>
+      <label><input type="checkbox" id="toggleVwapDay" checked> VWAP(Daily)</label>
+    </div>
+
+    <div class="controls">
+      <!-- Toggles for daily-based SMAs -->
+      <label><input type="checkbox" id="toggleSma50" checked> SMA50 (Daily)</label>
+      <label><input type="checkbox" id="toggleSma100" checked> SMA100 (Daily)</label>
+      <label><input type="checkbox" id="toggleSma200" checked> SMA200 (Daily)</label>
+    </div>
+
+    <div id="chart"></div>
+  </div>
+
+  <!-- Ranking display -->
+  <div id="ranking">
+    <h3>Ranking Score</h3>
+    <p>Load a stock to see the calculation here.</p>
+  </div>
+
+  <script>
+    let chart, candleSeries;
+    let ema8Series, ema26Series, vwapGlobalSeries, vwapDaySeries;
+    let sma50Series, sma100Series, sma200Series;
+
+    // Arrays for intraday-based indicators
+    let ema8Data = [], ema26Data = [], vwapGlobalData = [], vwapDayData = [];
+
+    // Arrays for daily-based SMAs
+    let dailySma50Data = [], dailySma100Data = [], dailySma200Data = [];
+
+    function initChart() {
+      chart = LightweightCharts.createChart(document.getElementById('chart'), {
+        width: 900,
+        height: 600,
+        layout: { background: { color: '#FFFFFF' }, textColor: '#000000' },
+        grid: {
+          vertLines: { color: '#eee' },
+          horzLines: { color: '#eee' },
+        },
+        timeScale: {
+          borderVisible: false,
+          timeVisible: true,
+          secondsVisible: false,
+        },
+      });
+
+      candleSeries = chart.addCandlestickSeries({
+        upColor: '#0f0',
+        downColor: '#f00',
+        borderUpColor: '#0f0',
+        borderDownColor: '#f00',
+        wickUpColor: '#0f0',
+        wickDownColor: '#f00',
+      });
+
+      // Intraday-based indicators
+      ema8Series = chart.addLineSeries({ color: '#2962FF', lineWidth: 2 });
+      ema26Series = chart.addLineSeries({ color: '#FF6D00', lineWidth: 2 });
+      vwapGlobalSeries = chart.addLineSeries({ color: '#AA00FF', lineWidth: 2 });
+      vwapDaySeries = chart.addLineSeries({ color: '#00AAFF', lineWidth: 2 });
+
+      // Daily-based SMAs
+      sma50Series = chart.addLineSeries({ color: '#FFD700', lineWidth: 2 });   // gold
+      sma100Series = chart.addLineSeries({ color: '#8B4513', lineWidth: 2 }); // saddle brown
+      sma200Series = chart.addLineSeries({ color: '#006400', lineWidth: 2 }); // dark green
+    }
+
+    // Compute the final ranking score
+    function computeRankingScore(data) {
+      // We'll use the last candle's close as "price"
+      if (!data.candles.length) {
+        return { score: 0, calculation: ["No candles available"] };
+      }
+      const lastCandle = data.candles[data.candles.length - 1];
+      const price = lastCandle.close;
+
+      // Helper to get the last value from an array
+      function lastValue(arr) {
+        return arr.length ? arr[arr.length - 1].value : null;
+      }
+
+      // Get last values
+      const dailyVwapVal = lastValue(data.vwapDay);
+      const globalVwapVal = lastValue(data.vwapGlobal);
+      const ema8Val = lastValue(data.ema8);
+      const ema26Val = lastValue(data.ema26);
+      const sma50Val = lastValue(data.dailySma50);
+      const sma100Val = lastValue(data.dailySma100);
+      const sma200Val = lastValue(data.dailySma200);
+
+      let score = 0;
+      let calc = [];
+
+      // Price > Daily VWAP: +3 else -3
+      if (dailyVwapVal != null) {
+        if (price > dailyVwapVal) {
+          score += 3; calc.push("Price > Daily VWAP => +3");
+        } else {
+          score -= 3; calc.push("Price <= Daily VWAP => -3");
+        }
+      }
+
+      // Price > EMA8: +4 else -4
+      if (ema8Val != null) {
+        if (price > ema8Val) {
+          score += 4; calc.push("Price > EMA8 => +4");
+        } else {
+          score -= 4; calc.push("Price <= EMA8 => -4");
+        }
+      }
+
+      // Price > EMA26: +5 else -5
+      if (ema26Val != null) {
+        if (price > ema26Val) {
+          score += 5; calc.push("Price > EMA26 => +5");
+        } else {
+          score -= 5; calc.push("Price <= EMA26 => -5");
+        }
+      }
+
+      // Price > SMA50: +6 else -6
+      if (sma50Val != null) {
+        if (price > sma50Val) {
+          score += 6; calc.push("Price > SMA50 => +6");
+        } else {
+          score -= 6; calc.push("Price <= SMA50 => -6");
+        }
+      }
+
+      // Price > SMA100: +7 else -7
+      if (sma100Val != null) {
+        if (price > sma100Val) {
+          score += 7; calc.push("Price > SMA100 => +7");
+        } else {
+          score -= 7; calc.push("Price <= SMA100 => -7");
+        }
+      }
+
+      // Price > SMA200: +8 else -8
+      if (sma200Val != null) {
+        if (price > sma200Val) {
+          score += 8; calc.push("Price > SMA200 => +8");
+        } else {
+          score -= 8; calc.push("Price <= SMA200 => -8");
+        }
+      }
+
+      // Price > Global VWAP: +10 else -10
+      if (globalVwapVal != null) {
+        if (price > globalVwapVal) {
+          score += 10; calc.push("Price > Global VWAP => +10");
+        } else {
+          score -= 10; calc.push("Price <= Global VWAP => -10");
+        }
+      }
+
+      // EMA8 > EMA26: +5 else -5
+      if (ema8Val != null && ema26Val != null) {
+        if (ema8Val > ema26Val) {
+          score += 5; calc.push("EMA8 > EMA26 => +5");
+        } else {
+          score -= 5; calc.push("EMA8 <= EMA26 => -5");
+        }
+      }
+
+      return { score, calculation: calc };
+    }
+
+    function displayRanking(ranking) {
+      const rankingDiv = document.getElementById('ranking');
+      rankingDiv.innerHTML = `<h3>Ranking Score: ${ranking.score}</h3>`;
+      rankingDiv.innerHTML += `<ul>${ranking.calculation.map(c => `<li>${c}</li>`).join("")}</ul>`;
+    }
+
+    function updateIndicatorVisibility() {
+      // Intraday-based
+      document.getElementById('toggleEma8').checked
+        ? ema8Series.setData(ema8Data)
+        : ema8Series.setData([]);
+
+      document.getElementById('toggleEma26').checked
+        ? ema26Series.setData(ema26Data)
+        : ema26Series.setData([]);
+
+      document.getElementById('toggleVwapGlobal').checked
+        ? vwapGlobalSeries.setData(vwapGlobalData)
+        : vwapGlobalSeries.setData([]);
+
+      document.getElementById('toggleVwapDay').checked
+        ? vwapDaySeries.setData(vwapDayData)
+        : vwapDaySeries.setData([]);
+
+      // Daily-based SMAs
+      document.getElementById('toggleSma50').checked
+        ? sma50Series.setData(dailySma50Data)
+        : sma50Series.setData([]);
+
+      document.getElementById('toggleSma100').checked
+        ? sma100Series.setData(dailySma100Data)
+        : sma100Series.setData([]);
+
+      document.getElementById('toggleSma200').checked
+        ? sma200Series.setData(dailySma200Data)
+        : sma200Series.setData([]);
+    }
+
+    async function loadChart() {
+      const symbol = document.getElementById('symbol').value.toUpperCase().trim();
+      const interval = document.getElementById('interval').value;
+
+      if (!symbol) {
+        alert("Please enter a valid ticker symbol.");
+        return;
+      }
+
+      try {
+        const url = `/api/historical?symbol=${symbol}&interval=${interval}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+          alert(`Error: ${data.error}`);
+          return;
+        }
+
+        // 1) Candles
+        candleSeries.setData(data.candles);
+
+        // 2) Save intraday-based indicator arrays
+        ema8Data = data.ema8 || [];
+        ema26Data = data.ema26 || [];
+        vwapGlobalData = data.vwapGlobal || [];
+        vwapDayData = data.vwapDay || [];
+
+        // 3) Save daily-based SMA arrays
+        dailySma50Data = data.dailySma50 || [];
+        dailySma100Data = data.dailySma100 || [];
+        dailySma200Data = data.dailySma200 || [];
+
+        // 4) Update toggles
+        updateIndicatorVisibility();
+
+        // 5) Compute the ranking score
+        const ranking = computeRankingScore(data);
+        displayRanking(ranking);
+
+        console.log(`Loaded ${data.candles.length} bars for ${symbol} (${interval}). Score: ${ranking.score}`);
+      } catch (error) {
+        console.error("Failed to load chart data:", error);
+        alert("Failed to load chart data. Check console for details.");
+      }
+    }
+
+    window.onload = function() {
+      initChart();
+
+      // Load chart on button click
+      document.getElementById('loadBtn').addEventListener('click', loadChart);
+
+      // Press Enter in the ticker field also loads chart
+      document.getElementById('symbol').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          loadChart();
+        }
+      });
+
+      // Changing the interval also loads chart
+      document.getElementById('interval').addEventListener('change', loadChart);
+
+      // Toggles
+      document.getElementById('toggleEma8').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleEma26').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleVwapGlobal').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleVwapDay').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleSma50').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleSma100').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleSma200').addEventListener('change', updateIndicatorVisibility);
+    };
+  </script>
+</body>
+</html>
