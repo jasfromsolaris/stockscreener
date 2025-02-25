@@ -2,103 +2,297 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Proprietary Ranking with All Indicators</title>
+  <title>Proprietary Ranking with All Indicators (No Global VWAP, With Volume)</title>
 
+  <!-- Load Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 
+  <!-- Google Fonts for modern typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      padding: 20px;
       display: flex;
+      justify-content: center;
+      align-items: flex-start;
     }
+
+    .container {
+      display: flex;
+      max-width: 1300px;
+      width: 100%;
+      gap: 20px;
+    }
+
     .left-column {
-      margin-right: 20px;
+      flex: 2;
     }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #FFD700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .controls:hover {
+      transform: translateY(-5px);
+    }
+
+    label {
+      font-size: 0.9rem;
+      margin-right: 10px;
+      color: #d0d0d0;
+    }
+
+    input[type="text"], select {
+      padding: 8px;
+      border: none;
+      border-radius: 5px;
+      background: #33334d;
+      color: #fff;
+      font-size: 1rem;
+      margin-right: 10px;
+      transition: all 0.3s ease;
+    }
+
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      box-shadow: 0 0 5px #FFD700;
+    }
+
+    button {
+      padding: 8px 15px;
+      background: linear-gradient(90deg, #FFD700, #FFA500);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    /* Custom Checkbox Styling */
+    input[type="checkbox"] {
+      display: none;
+    }
+
+    label.checkbox {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      margin-right: 15px;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      transition: background 0.3s ease;
+    }
+
+    label.checkbox:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    label.checkbox:before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      margin-right: 8px;
+      transition: all 0.3s ease;
+    }
+
+    input[type="checkbox"]:checked + label.checkbox:before {
+      background: #FFD700;
+      box-shadow: 0 0 5px #FFD700;
+    }
+
     #chart {
       width: 900px;
       height: 600px;
-      border: 1px solid #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      background: #1e1e2f; /* Matches dark mode background */
     }
-    .controls {
+
+    #ranking {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 20px;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      height: fit-content;
+      transition: transform 0.3s ease;
+    }
+
+    #ranking:hover {
+      transform: translateY(-5px);
+    }
+
+    #ranking h3 {
+      font-size: 1.5rem;
+      color: #FFD700;
       margin-bottom: 10px;
     }
-    #ranking {
-      width: 300px;
-      border: 1px solid #ccc;
-      padding: 10px;
+
+    #ranking p, #ranking ul {
+      font-size: 0.95rem;
+      color: #d0d0d0;
     }
-    #ranking h3 {
-      margin-top: 0;
-    }
+
     #ranking ul {
-      padding-left: 20px;
+      list-style: none;
+      padding-left: 0;
+    }
+
+    #ranking ul li {
+      margin: 5px 0;
+      padding-left: 15px;
+      position: relative;
+    }
+
+    #ranking ul li:before {
+      content: '•';
+      color: #FFD700;
+      position: absolute;
+      left: 0;
+    }
+
+    #vwapList li button {
+      padding: 4px 8px;
+      background: linear-gradient(90deg, #FF4500, #FF6347);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: all 0.3s ease;
+    }
+
+    #vwapList li button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 5px rgba(255, 99, 71, 0.5);
+    }
+
+    @media (max-width: 1000px) {
+      .container {
+        flex-direction: column;
+      }
+      #chart {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div class="left-column">
+      <h1>Banana Charts</h1>
 
-  <div class="left-column">
-    <h1>Proprietary Ranking + All Indicators</h1>
+      <div class="controls">
+        <label for="symbol">Ticker Symbol:</label>
+        <input type="text" id="symbol" value="AAPL" />
+        <label for="interval">Interval:</label>
+        <select id="interval">
+          <option value="1D">1D (Daily)</option>
+          <option value="5min">5m</option>
+          <option value="15min">15m</option>
+          <option value="30min">30m</option>
+          <option value="1h">1h</option>
+        </select>
+        <button id="loadBtn">Load Chart</button>
+      </div>
 
-    <div class="controls">
-      <label for="symbol">Ticker Symbol:</label>
-      <input type="text" id="symbol" value="AAPL" />
+      <div class="controls">
+        <input type="checkbox" id="toggleEma8" checked>
+        <label class="checkbox" for="toggleEma8">EMA8</label>
+        <input type="checkbox" id="toggleEma26" checked>
+        <label class="checkbox" for="toggleEma26">EMA26</label>
+        <input type="checkbox" id="toggleVwapDay" checked>
+        <label class="checkbox" for="toggleVwapDay">VWAP (Daily)</label>
+        <input type="checkbox" id="toggleVolume" checked>
+        <label class="checkbox" for="toggleVolume">Volume</label>
+        <input type="checkbox" id="toggleSma50" checked>
+        <label class="checkbox" for="toggleSma50">SMA50 (Daily)</label>
+        <input type="checkbox" id="toggleSma100" checked>
+        <label class="checkbox" for="toggleSma100">SMA100 (Daily)</label>
+        <input type="checkbox" id="toggleSma200" checked>
+        <label class="checkbox" for="toggleSma200">SMA200 (Daily)</label>
+      </div>
 
-      <label for="interval">Interval:</label>
-      <select id="interval">
-        <option value="1D">1D (Daily)</option>
-        <option value="5min">5m</option>
-        <option value="15min">15m</option>
-        <option value="30min">30m</option>
-        <option value="1h">1h</option>
-      </select>
-      <button id="loadBtn">Load Chart</button>
+      <div class="controls">
+        <button id="toggleAnchoredVwapBtn">Toggle Anchored VWAP</button>
+      </div>
+
+      <div id="chart"></div>
     </div>
 
-    <div class="controls">
-      <!-- Toggles for intraday-based indicators -->
-      <label><input type="checkbox" id="toggleEma8" checked> EMA8</label>
-      <label><input type="checkbox" id="toggleEma26" checked> EMA26</label>
-      <label><input type="checkbox" id="toggleVwapGlobal" checked> VWAP(Global)</label>
-      <label><input type="checkbox" id="toggleVwapDay" checked> VWAP(Daily)</label>
+    <div id="ranking">
+      <h3>Ranking Score</h3>
+      <p>Load a stock to see the calculation here.</p>
+      <h3>Anchored VWAPs</h3>
+      <ul id="vwapList"></ul>
     </div>
-
-    <div class="controls">
-      <!-- Toggles for daily-based SMAs -->
-      <label><input type="checkbox" id="toggleSma50" checked> SMA50 (Daily)</label>
-      <label><input type="checkbox" id="toggleSma100" checked> SMA100 (Daily)</label>
-      <label><input type="checkbox" id="toggleSma200" checked> SMA200 (Daily)</label>
-    </div>
-
-    <div id="chart"></div>
-  </div>
-
-  <!-- Ranking display -->
-  <div id="ranking">
-    <h3>Ranking Score</h3>
-    <p>Load a stock to see the calculation here.</p>
   </div>
 
   <script>
     let chart, candleSeries;
-    let ema8Series, ema26Series, vwapGlobalSeries, vwapDaySeries;
+    let ema8Series, ema26Series, vwapDaySeries;
     let sma50Series, sma100Series, sma200Series;
+    let volumeSeries; // new volume histogram
+    let anchoredVwaps = []; // Array to store multiple Anchored VWAP series
+    let isAnchoredVwapMode = false;
 
-    // Arrays for intraday-based indicators
-    let ema8Data = [], ema26Data = [], vwapGlobalData = [], vwapDayData = [];
-
-    // Arrays for daily-based SMAs
+    // Arrays for each indicator
+    let ema8Data = [];
+    let ema26Data = [];
+    let vwapDayData = [];
+    let volumeData = []; // new array
     let dailySma50Data = [], dailySma100Data = [], dailySma200Data = [];
 
     function initChart() {
       chart = LightweightCharts.createChart(document.getElementById('chart'), {
         width: 900,
         height: 600,
-        layout: { background: { color: '#FFFFFF' }, textColor: '#000000' },
+        layout: {
+          background: { color: '#1e1e2f' },
+          textColor: '#d0d0d0'
+        },
         grid: {
-          vertLines: { color: '#eee' },
-          horzLines: { color: '#eee' },
+          vertLines: { color: '#33334d' },
+          horzLines: { color: '#33334d' },
+        },
+        rightPriceScale: {
+          autoScale: true
         },
         timeScale: {
           borderVisible: false,
@@ -107,6 +301,7 @@
         },
       });
 
+      // Candlestick series
       candleSeries = chart.addCandlestickSeries({
         upColor: '#0f0',
         downColor: '#f00',
@@ -116,35 +311,116 @@
         wickDownColor: '#f00',
       });
 
-      // Intraday-based indicators
+      // Line series for EMA8, EMA26, and daily VWAP
       ema8Series = chart.addLineSeries({ color: '#2962FF', lineWidth: 2 });
       ema26Series = chart.addLineSeries({ color: '#FF6D00', lineWidth: 2 });
-      vwapGlobalSeries = chart.addLineSeries({ color: '#AA00FF', lineWidth: 2 });
       vwapDaySeries = chart.addLineSeries({ color: '#00AAFF', lineWidth: 2 });
 
-      // Daily-based SMAs
-      sma50Series = chart.addLineSeries({ color: '#FFD700', lineWidth: 2 });   // gold
-      sma100Series = chart.addLineSeries({ color: '#8B4513', lineWidth: 2 }); // saddle brown
-      sma200Series = chart.addLineSeries({ color: '#006400', lineWidth: 2 }); // dark green
+      // Line series for daily SMAs
+      sma50Series = chart.addLineSeries({ color: '#FFD700', lineWidth: 2 });
+      sma100Series = chart.addLineSeries({ color: '#8B4513', lineWidth: 2 });
+      sma200Series = chart.addLineSeries({ color: '#006400', lineWidth: 2 });
+
+      // Volume histogram on its own scale
+      volumeSeries = chart.addHistogramSeries({
+        color: '#888',
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volume', // separate scale
+      });
+
+      // Constrain volume to the bottom portion (optional)
+      volumeSeries.priceScale().applyOptions({
+        scaleMargins: {
+          top: 0.8,   // volume occupies ~20% at bottom
+          bottom: 0,
+        },
+      });
+
+      // Add click handler for the chart
+      chart.subscribeClick((param) => {
+        if (!isAnchoredVwapMode || !param.time) return;
+
+        const candleTime = param.time;
+        addAnchoredVwap(candleTime);
+      });
     }
 
-    // Compute the final ranking score
-    function computeRankingScore(data) {
-      // We'll use the last candle's close as "price"
-      if (!data.candles.length) {
-        return { score: 0, calculation: ["No candles available"] };
+    // Function to add an Anchored VWAP
+    async function addAnchoredVwap(anchorTime) {
+      const symbol = document.getElementById('symbol').value.toUpperCase().trim();
+      const interval = document.getElementById('interval').value;
+
+      try {
+        const response = await fetch(`/api/anchored_vwap?symbol=${symbol}&interval=${interval}&anchorTime=${anchorTime}`);
+        const data = await response.json();
+
+        if (data.error) {
+          alert(`Error: ${data.error}`);
+          return;
+        }
+
+        const vwapSeries = chart.addLineSeries({ color: '#FF00FF', lineWidth: 2 });
+        vwapSeries.setData(data.anchoredVwap);
+
+        // Store the series with its anchor for removal later
+        anchoredVwaps.push({ anchorTime, series: vwapSeries });
+        updateVwapList(); // Refresh the list
+      } catch (error) {
+        console.error("Failed to load Anchored VWAP:", error);
+        alert("Failed to load Anchored VWAP.");
       }
+    }
+
+    // Function to remove an Anchored VWAP
+    function removeAnchoredVwap(anchorTime) {
+      const index = anchoredVwaps.findIndex(v => v.anchorTime === anchorTime);
+      if (index !== -1) {
+        chart.removeSeries(anchoredVwaps[index].series);
+        anchoredVwaps.splice(index, 1);
+        updateVwapList(); // Refresh the list
+      }
+    }
+
+    // Function to update the VWAP list in the UI
+    function updateVwapList() {
+      const vwapList = document.getElementById('vwapList');
+      vwapList.innerHTML = '';
+      anchoredVwaps.forEach(vwap => {
+        const li = document.createElement('li');
+        const date = new Date(vwap.anchorTime * 1000).toLocaleString();
+        li.innerHTML = `Anchor: ${date} <button class="removeVwapBtn" data-time="${vwap.anchorTime}">Remove</button>`;
+        vwapList.appendChild(li);
+      });
+
+      // Add event listeners to remove buttons
+      document.querySelectorAll('.removeVwapBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const anchorTime = parseInt(btn.getAttribute('data-time'));
+          removeAnchoredVwap(anchorTime);
+        });
+      });
+    }
+
+    // Compute a "ranking" that no longer uses "global VWAP" since we removed it
+    function computeRankingScore(data, symbol) {
+      if (!data.candles.length) {
+        return {
+          symbol,
+          lastPrice: null,
+          score: 0,
+          calculation: ["No candles available"]
+        };
+      }
+
       const lastCandle = data.candles[data.candles.length - 1];
       const price = lastCandle.close;
 
-      // Helper to get the last value from an array
       function lastValue(arr) {
         return arr.length ? arr[arr.length - 1].value : null;
       }
 
-      // Get last values
+      // We'll keep dailyVwapVal for partial logic, remove references to global VWAP
       const dailyVwapVal = lastValue(data.vwapDay);
-      const globalVwapVal = lastValue(data.vwapGlobal);
       const ema8Val = lastValue(data.ema8);
       const ema26Val = lastValue(data.ema26);
       const sma50Val = lastValue(data.dailySma50);
@@ -154,7 +430,6 @@
       let score = 0;
       let calc = [];
 
-      // Price > Daily VWAP: +3 else -3
       if (dailyVwapVal != null) {
         if (price > dailyVwapVal) {
           score += 3; calc.push("Price > Daily VWAP => +3");
@@ -163,7 +438,6 @@
         }
       }
 
-      // Price > EMA8: +4 else -4
       if (ema8Val != null) {
         if (price > ema8Val) {
           score += 4; calc.push("Price > EMA8 => +4");
@@ -172,7 +446,6 @@
         }
       }
 
-      // Price > EMA26: +5 else -5
       if (ema26Val != null) {
         if (price > ema26Val) {
           score += 5; calc.push("Price > EMA26 => +5");
@@ -181,7 +454,6 @@
         }
       }
 
-      // Price > SMA50: +6 else -6
       if (sma50Val != null) {
         if (price > sma50Val) {
           score += 6; calc.push("Price > SMA50 => +6");
@@ -190,7 +462,6 @@
         }
       }
 
-      // Price > SMA100: +7 else -7
       if (sma100Val != null) {
         if (price > sma100Val) {
           score += 7; calc.push("Price > SMA100 => +7");
@@ -199,7 +470,6 @@
         }
       }
 
-      // Price > SMA200: +8 else -8
       if (sma200Val != null) {
         if (price > sma200Val) {
           score += 8; calc.push("Price > SMA200 => +8");
@@ -208,16 +478,7 @@
         }
       }
 
-      // Price > Global VWAP: +10 else -10
-      if (globalVwapVal != null) {
-        if (price > globalVwapVal) {
-          score += 10; calc.push("Price > Global VWAP => +10");
-        } else {
-          score -= 10; calc.push("Price <= Global VWAP => -10");
-        }
-      }
-
-      // EMA8 > EMA26: +5 else -5
+      // Bonus logic: If EMA8 > EMA26 => +5, else -5
       if (ema8Val != null && ema26Val != null) {
         if (ema8Val > ema26Val) {
           score += 5; calc.push("EMA8 > EMA26 => +5");
@@ -226,17 +487,38 @@
         }
       }
 
-      return { score, calculation: calc };
+      return {
+        symbol,
+        lastPrice: price,
+        score,
+        calculation: calc
+      };
     }
 
     function displayRanking(ranking) {
       const rankingDiv = document.getElementById('ranking');
-      rankingDiv.innerHTML = `<h3>Ranking Score: ${ranking.score}</h3>`;
-      rankingDiv.innerHTML += `<ul>${ranking.calculation.map(c => `<li>${c}</li>`).join("")}</ul>`;
+
+      if (ranking.lastPrice == null) {
+        rankingDiv.innerHTML = `
+          <h3>${ranking.symbol} - No Candles</h3>
+          <h3>Ranking Score: ${ranking.score}</h3>
+          <ul>${ranking.calculation.map(c => `<li>${c}</li>`).join("")}</ul>
+          <h3>Anchored VWAPs</h3>
+          <ul id="vwapList"></ul>
+        `;
+      } else {
+        rankingDiv.innerHTML = `
+          <h3>${ranking.symbol} - Last Price: ${ranking.lastPrice.toFixed(2)}</h3>
+          <h3>Ranking Score: ${ranking.score}</h3>
+          <ul>${ranking.calculation.map(c => `<li>${c}</li>`).join("")}</ul>
+          <h3>Anchored VWAPs</h3>
+          <ul id="vwapList"></ul>
+        `;
+      }
+      updateVwapList(); // Ensure the list is populated after ranking update
     }
 
     function updateIndicatorVisibility() {
-      // Intraday-based
       document.getElementById('toggleEma8').checked
         ? ema8Series.setData(ema8Data)
         : ema8Series.setData([]);
@@ -245,15 +527,15 @@
         ? ema26Series.setData(ema26Data)
         : ema26Series.setData([]);
 
-      document.getElementById('toggleVwapGlobal').checked
-        ? vwapGlobalSeries.setData(vwapGlobalData)
-        : vwapGlobalSeries.setData([]);
-
       document.getElementById('toggleVwapDay').checked
         ? vwapDaySeries.setData(vwapDayData)
         : vwapDaySeries.setData([]);
 
-      // Daily-based SMAs
+      // Volume
+      document.getElementById('toggleVolume').checked
+        ? volumeSeries.setData(volumeData)
+        : volumeSeries.setData([]);
+
       document.getElementById('toggleSma50').checked
         ? sma50Series.setData(dailySma50Data)
         : sma50Series.setData([]);
@@ -277,6 +559,9 @@
       }
 
       try {
+        // Step 1: Capture the current visible range before updating data
+        let visibleRange = chart.timeScale().getVisibleRange();
+
         const url = `/api/historical?symbol=${symbol}&interval=${interval}`;
         const response = await fetch(url);
         const data = await response.json();
@@ -286,28 +571,47 @@
           return;
         }
 
-        // 1) Candles
+        // Step 2: Update chart data
         candleSeries.setData(data.candles);
 
-        // 2) Save intraday-based indicator arrays
+        // Lines
         ema8Data = data.ema8 || [];
         ema26Data = data.ema26 || [];
-        vwapGlobalData = data.vwapGlobal || [];
         vwapDayData = data.vwapDay || [];
 
-        // 3) Save daily-based SMA arrays
+        // Volume
+        volumeData = data.volume || [];
+
+        // Daily SMAs
         dailySma50Data = data.dailySma50 || [];
         dailySma100Data = data.dailySma100 || [];
         dailySma200Data = data.dailySma200 || [];
 
-        // 4) Update toggles
+        // Update toggles
         updateIndicatorVisibility();
 
-        // 5) Compute the ranking score
-        const ranking = computeRankingScore(data);
-        displayRanking(ranking);
+        // Step 3: Restore the previous visible range if it exists and is valid
+        if (visibleRange) {
+          // Ensure the range is still valid with the new data
+          const newDataTimes = data.candles.map(c => c.time);
+          const minTime = Math.min(...newDataTimes);
+          const maxTime = Math.max(...newDataTimes);
 
-        console.log(`Loaded ${data.candles.length} bars for ${symbol} (${interval}). Score: ${ranking.score}`);
+          // Adjust the range if it falls outside the new data
+          if (visibleRange.from < minTime) visibleRange.from = minTime;
+          if (visibleRange.to > maxTime) visibleRange.to = maxTime;
+
+          chart.timeScale().setVisibleRange(visibleRange);
+        } else {
+          // Fallback to fitting content only on initial load
+          chart.timeScale().fitContent();
+        }
+
+        // Ranking
+        const rankingResult = computeRankingScore(data, symbol);
+        displayRanking(rankingResult);
+
+        console.log(`Loaded ${data.candles.length} bars for ${symbol} (${interval}). Score: ${rankingResult.score}`);
       } catch (error) {
         console.error("Failed to load chart data:", error);
         alert("Failed to load chart data. Check console for details.");
@@ -317,27 +621,32 @@
     window.onload = function() {
       initChart();
 
-      // Load chart on button click
       document.getElementById('loadBtn').addEventListener('click', loadChart);
 
-      // Press Enter in the ticker field also loads chart
       document.getElementById('symbol').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           loadChart();
         }
       });
 
-      // Changing the interval also loads chart
       document.getElementById('interval').addEventListener('change', loadChart);
 
-      // Toggles
       document.getElementById('toggleEma8').addEventListener('change', updateIndicatorVisibility);
       document.getElementById('toggleEma26').addEventListener('change', updateIndicatorVisibility);
-      document.getElementById('toggleVwapGlobal').addEventListener('change', updateIndicatorVisibility);
       document.getElementById('toggleVwapDay').addEventListener('change', updateIndicatorVisibility);
+      document.getElementById('toggleVolume').addEventListener('change', updateIndicatorVisibility);
+
       document.getElementById('toggleSma50').addEventListener('change', updateIndicatorVisibility);
       document.getElementById('toggleSma100').addEventListener('change', updateIndicatorVisibility);
       document.getElementById('toggleSma200').addEventListener('change', updateIndicatorVisibility);
+
+      // Add event listener for Anchored VWAP button
+      document.getElementById('toggleAnchoredVwapBtn').addEventListener('click', () => {
+        isAnchoredVwapMode = !isAnchoredVwapMode;
+        document.getElementById('toggleAnchoredVwapBtn').textContent =
+          isAnchoredVwapMode ? 'Anchored VWAP Mode: ON' : 'Toggle Anchored VWAP';
+        alert(isAnchoredVwapMode ? 'Click a candle to place Anchored VWAP' : 'Anchored VWAP mode off');
+      });
     };
   </script>
 </body>
